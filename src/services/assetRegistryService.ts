@@ -85,10 +85,9 @@ class AssetRegistryService {
       // Upload as raw file to Cloudinary
       const formData = new FormData();
       formData.append('file', registryBlob);
-      formData.append('upload_preset', 'mockupr_unsigned');
+      formData.append('upload_preset', 'ml_default');
       formData.append('public_id', this.REGISTRY_PUBLIC_ID);
       formData.append('resource_type', 'raw');
-      formData.append('overwrite', 'true');
 
       const response = await fetch(
         `https://api.cloudinary.com/v1_1/${this.cloudName}/raw/upload`,
@@ -98,11 +97,14 @@ class AssetRegistryService {
         }
       );
 
+      const responseData = await response.json();
+      console.log('Cloudinary upload response:', responseData);
+
       if (response.ok) {
         console.log('Asset registry saved successfully');
         return true;
       } else {
-        console.error('Failed to save registry:', response.statusText);
+        console.error('Failed to save registry:', response.statusText, responseData);
         return false;
       }
     } catch (error) {
