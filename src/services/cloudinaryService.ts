@@ -30,8 +30,7 @@ class CloudinaryService {
   constructor() {
     this.config = {
       cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
-      apiKey: import.meta.env.VITE_CLOUDINARY_API_KEY,
-      uploadPreset: 'mockupr_uploads' // We'll create this preset
+      apiKey: import.meta.env.VITE_CLOUDINARY_API_KEY
     };
 
     if (!this.config.cloudName || !this.config.apiKey) {

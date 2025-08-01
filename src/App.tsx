@@ -15,7 +15,6 @@ import CompressionProgress from './components/Upload/CompressionProgress';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(authService.isAuthenticated());
-  const [isAuthInitialized, setIsAuthInitialized] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [blanks, setBlanks] = useState<UploadedImage[]>([]);
   const [designs, setDesigns] = useState<UploadedImage[]>([]);

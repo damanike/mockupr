@@ -21,36 +21,30 @@ class AuthService {
     }
     
     const token = Cookies.get(COOKIE_NAME);
-    console.log('Initializing auth, token found:', !!token);
     
     if (token) {
       try {
         // Simple token validation without JWT for now
         const decoded = JSON.parse(atob(token));
-        console.log('Token decoded:', { email: decoded.email, expires: new Date(decoded.expires) });
         
         if (decoded.email === AUTHORIZED_EMAIL && decoded.expires > Date.now()) {
           this.currentUser = {
             email: decoded.email,
             isAuthenticated: true
           };
-          console.log('User authenticated from stored session:', decoded.email);
           this.isInitialized = true;
           return true;
         } else {
-          console.log('Stored session expired, clearing auth');
           this.logout();
           this.isInitialized = true;
           return false;
         }
       } catch (error) {
-        console.log('Invalid token, clearing auth');
         this.logout();
         this.isInitialized = true;
         return false;
       }
     } else {
-      console.log('No token found');
       this.isInitialized = true;
       return false;
     }
@@ -59,17 +53,14 @@ class AuthService {
   async login(credentials: LoginCredentials): Promise<{ success: boolean; message: string }> {
     const { email, password, stayLoggedIn = false } = credentials;
 
-    console.log('Login attempt:', { email, password: password.length + ' chars' });
 
     // Check email
     if (email !== AUTHORIZED_EMAIL) {
-      console.log('Email mismatch:', email, 'vs', AUTHORIZED_EMAIL);
       return { success: false, message: 'Invalid email address' };
     }
 
     // Check password
     const isPasswordValid = password.trim() === AUTHORIZED_PASSWORD;
-    console.log('Password check:', { provided: password, expected: AUTHORIZED_PASSWORD, valid: isPasswordValid });
     
     if (!isPasswordValid) {
       return { success: false, message: 'Invalid password' };
