@@ -85,7 +85,7 @@ class AssetRegistryService {
       // Upload as raw file to Cloudinary
       const formData = new FormData();
       formData.append('file', registryBlob);
-      formData.append('upload_preset', 'ml_default');
+      formData.append('upload_preset', 'mockupr_unsigned');
       formData.append('public_id', this.REGISTRY_PUBLIC_ID);
       formData.append('resource_type', 'raw');
 
