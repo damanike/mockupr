@@ -240,14 +240,13 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
   };
 
   const updateCanvasCursor = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!displayProject || previewMode !== 'normal' || isDragging || isResizing) return;
+    if (!project || previewMode !== 'normal' || isDragging || isResizing) return;
 
     const { x, y } = getCanvasCoordinates(e);
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     // Find element under cursor
-    const hoveredElement = [...displayProject.designs]
     const hoveredElement = [...project.designs]
       .reverse()
       .find(design => {
@@ -284,7 +283,6 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
   };
 
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!displayProject || previewMode !== 'normal') return;
     if (!project || previewMode !== 'normal') return;
 
     const { x, y } = getCanvasCoordinates(e);
@@ -336,7 +334,6 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     updateCanvasCursor(e);
     
-    if (!displayProject || previewMode !== 'normal') return;
     if (!project || previewMode !== 'normal') return;
 
     const { x, y } = getCanvasCoordinates(e);
@@ -750,7 +747,6 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
                 key={blank.id}
                 onClick={() => handleBlankChange(blank)}
                 className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-200 ${
-                  displayProject?.blankId === blank.id
                   project?.blankId === blank.id
                     ? 'border-blue-500 ring-2 ring-blue-200'
                     : 'border-gray-200 hover:border-gray-300'
@@ -763,7 +759,6 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
                     className="w-full h-full object-cover"
                   />
                 </div>
-                {displayProject?.blankId === blank.id && (
                 {project?.blankId === blank.id && (
                   <div className="absolute top-1 right-1 bg-blue-500 text-white rounded-full p-1">
                     <RefreshCw className="w-3 h-3" />
