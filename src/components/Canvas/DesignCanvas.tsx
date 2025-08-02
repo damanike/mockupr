@@ -32,35 +32,29 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
   const [viewMode, setViewMode] = useState<'front' | 'back'>('front');
   const [exportFormat, setExportFormat] = useState<'png' | 'jpg' | 'webp'>('jpg');
   const [isExporting, setIsExporting] = useState(false);
-  const [tempProject, setTempProject] = useState<MockupProject | null>(null);
-  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Use tempProject for immediate visual updates, project for final state
-  const displayProject = tempProject || project;
+  const renderRequestRef = useRef<number | null>(null);
 
   useEffect(() => {
-    renderCanvas();
-  }, [displayProject, blankImage, designImages, zoom, previewMode, lightingMode, viewMode, selectedElement]);
-
-  // Debounced project update function
-  const debouncedProjectUpdate = (updatedProject: MockupProject) => {
-    // Clear existing timeout
-    if (updateTimeoutRef.current) {
-      clearTimeout(updateTimeoutRef.current);
+    // Cancel any pending render
+    if (renderRequestRef.current) {
+      cancelAnimationFrame(renderRequestRef.current);
     }
-
-    // Set temp project for immediate visual feedback
-    setTempProject(updatedProject);
-
-    // Debounce the actual project update
-    updateTimeoutRef.current = setTimeout(() => {
-      onProjectUpdate(updatedProject);
-      setTempProject(null);
-    }, 100); // 100ms debounce
-  };
+    
+    // Schedule render on next animation frame
+    renderRequestRef.current = requestAnimationFrame(() => {
+      renderCanvas();
+    });
+    
+    return () => {
+      if (renderRequestRef.current) {
+        cancelAnimationFrame(renderRequestRef.current);
+      }
+    };
+  }, [project, blankImage, designImages, zoom, previewMode, lightingMode, viewMode, selectedElement]);
+  
   const renderCanvas = () => {
     const canvas = canvasRef.current;
-    if (!canvas || !displayProject || !blankImage?.url) return;
+    if (!canvas || !project || !blankImage?.url) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -115,7 +109,7 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
       ctx.restore();
       
       // Draw design elements
-      displayProject.designs.forEach((design) => {
+      project.designs.forEach((design) => {
         const designImage = designImages.find(img => img.id === design.imageId);
         if (!designImage?.url) return;
 
@@ -153,7 +147,7 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
           ctx.restore();
           
           // Draw selection outline and handles if selected (only in normal preview mode)
-          if (selectedElement === design.id && previewMode === 'normal') {
+          if (selectedElement === design.id && previewMode === 'normal' && !isDragging && !isResizing) {
             ctx.save();
             ctx.globalCompositeOperation = 'source-over';
             ctx.globalAlpha = 1;
@@ -254,6 +248,7 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
 
     // Find element under cursor
     const hoveredElement = [...displayProject.designs]
+    const hoveredElement = [...project.designs]
       .reverse()
       .find(design => {
         return x >= design.x && 
@@ -290,11 +285,12 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
 
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!displayProject || previewMode !== 'normal') return;
+    if (!project || previewMode !== 'normal') return;
 
     const { x, y } = getCanvasCoordinates(e);
 
     // Find clicked element (reverse order for z-index)
-    const clickedElement = [...displayProject.designs]
+    const clickedElement = [...project.designs]
       .reverse()
       .find(design => {
         // Check if clicking on delete button
@@ -341,25 +337,26 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
     updateCanvasCursor(e);
     
     if (!displayProject || previewMode !== 'normal') return;
+    if (!project || previewMode !== 'normal') return;
 
     const { x, y } = getCanvasCoordinates(e);
     
     if (isDragging && selectedElement) {
       // Handle dragging
-      const updatedDesigns = displayProject.designs.map(design =>
+      const updatedDesigns = project.designs.map(design =>
         design.id === selectedElement 
           ? { ...design, x: x - dragStart.x, y: y - dragStart.y }
           : design
       );
 
-      debouncedProjectUpdate({
-        ...displayProject,
+      onProjectUpdate({
+        ...project,
         designs: updatedDesigns,
         updatedAt: new Date()
       });
     } else if (isResizing && selectedElement && resizeHandle) {
       // Handle resizing
-      const selectedDesign = displayProject.designs.find(d => d.id === selectedElement);
+      const selectedDesign = project.designs.find(d => d.id === selectedElement);
       if (!selectedDesign) return;
 
       const deltaX = x - dragStart.x;
@@ -426,14 +423,14 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
       newWidth = Math.max(20, newWidth);
       newHeight = Math.max(20, newHeight);
 
-      const updatedDesigns = displayProject.designs.map(design =>
+      const updatedDesigns = project.designs.map(design =>
         design.id === selectedElement 
           ? { ...design, x: newX, y: newY, width: newWidth, height: newHeight }
           : design
       );
 
-      debouncedProjectUpdate({
-        ...displayProject,
+      onProjectUpdate({
+        ...project,
         designs: updatedDesigns,
         updatedAt: new Date()
       });
@@ -447,12 +444,12 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
   };
 
   const handleDeleteDesign = (designId: string) => {
-    if (!displayProject) return;
+    if (!project) return;
 
-    const updatedDesigns = displayProject.designs.filter(design => design.id !== designId);
+    const updatedDesigns = project.designs.filter(design => design.id !== designId);
     
     onProjectUpdate({
-      ...displayProject,
+      ...project,
       designs: updatedDesigns,
       updatedAt: new Date()
     });
@@ -461,14 +458,14 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
   };
 
   const updateSelectedElement = (updates: Partial<DesignElement>) => {
-    if (!displayProject || !selectedElement) return;
+    if (!project || !selectedElement) return;
 
-    const updatedDesigns = displayProject.designs.map(design =>
+    const updatedDesigns = project.designs.map(design =>
       design.id === selectedElement ? { ...design, ...updates } : design
     );
 
     onProjectUpdate({
-      ...displayProject,
+      ...project,
       designs: updatedDesigns,
       updatedAt: new Date()
     });
@@ -498,10 +495,10 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
   };
 
   const handleBlankChange = (newBlank: UploadedImage) => {
-    if (!displayProject) return;
+    if (!project) return;
 
     onProjectUpdate({
-      ...displayProject,
+      ...project,
       blankId: newBlank.id,
       updatedAt: new Date()
     });
@@ -509,7 +506,7 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
 
   const handleExport = async () => {
     const canvas = canvasRef.current;
-    if (!canvas || !displayProject || !blankImage) return;
+    if (!canvas || !project || !blankImage) return;
 
     setIsExporting(true);
 
@@ -570,8 +567,8 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
       });
       
       // Draw design elements without selection borders
-      if (displayProject.designs.length > 0) {
-        await Promise.all(displayProject.designs.map(async (design) => {
+      if (project.designs.length > 0) {
+        await Promise.all(project.designs.map(async (design) => {
           const designImage = designImages.find(img => img.id === design.imageId);
           if (!designImage) return;
 
@@ -613,7 +610,7 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
       }
 
       // Download with size optimization
-      downloadImage(exportCanvas, displayProject.name, exportFormat);
+      downloadImage(exportCanvas, project.name, exportFormat);
       
     } catch (error) {
       console.error('Export failed:', error);
@@ -623,7 +620,7 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
     }
   };
 
-  const selectedDesign = displayProject?.designs.find(d => d.id === selectedElement);
+  const selectedDesign = project?.designs.find(d => d.id === selectedElement);
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-full">
@@ -754,6 +751,7 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
                 onClick={() => handleBlankChange(blank)}
                 className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-200 ${
                   displayProject?.blankId === blank.id
+                  project?.blankId === blank.id
                     ? 'border-blue-500 ring-2 ring-blue-200'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
@@ -766,6 +764,7 @@ const DesignCanvas: React.FC<DesignCanvasProps> = ({
                   />
                 </div>
                 {displayProject?.blankId === blank.id && (
+                {project?.blankId === blank.id && (
                   <div className="absolute top-1 right-1 bg-blue-500 text-white rounded-full p-1">
                     <RefreshCw className="w-3 h-3" />
                   </div>
